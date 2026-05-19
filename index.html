@@ -62,7 +62,7 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei","Segoe UI",Arial,
 .hangjie-pending{background:#FFEB9C;color:#9C5700;border-color:#9C5700}
 .table-wrap{background:var(--card);border-radius:10px;box-shadow:var(--shadow);overflow:hidden}
 .table-scroll{overflow-x:auto;max-height:70vh;overflow-y:auto}
-table.data-table{width:100%;border-collapse:collapse;font-size:12px;min-width:1400px}
+table.data-table{width:100%;border-collapse:collapse;font-size:12px;min-width:1800px}
 .data-table thead{position:sticky;top:0;z-index:2}
 .data-table th{background:var(--primary-light);color:var(--primary);font-weight:600;padding:10px 12px;text-align:left;white-space:nowrap;border-bottom:2px solid var(--primary)}
 .data-table td{padding:8px 12px;border-bottom:1px solid var(--border);vertical-align:top}
@@ -161,6 +161,7 @@ table.data-table{width:100%;border-collapse:collapse;font-size:12px;min-width:14
 <table class="data-table"><thead><tr>
 <th>#</th><th>商品名称</th><th>景区名称</th><th>候选标品ID</th><th>候选标品名称</th><th>L1判定逻辑</th>
 <th style="text-align:center">L1得分</th><th style="text-align:center">L2得分</th><th style="text-align:center">最终得分</th>
+<th>费用包含</th>
 <th style="text-align:center">是否可挂接</th>
 <th>L1-错误类型</th><th>L1-扣分原因</th><th>L2-规则名称</th><th>L2-错误类型</th><th>L2-扣分原因</th><th style="text-align:center">L2-扣分值</th>
 </tr></thead><tbody id="tableBody"></tbody></table>
@@ -217,6 +218,7 @@ table.data-table{width:100%;border-collapse:collapse;font-size:12px;min-width:14
         '<td class="score-cell">'+scoreBadge(r['L1得分'])+'</td>' +
         '<td class="score-cell">'+scoreBadge(r['L2得分'])+'</td>' +
         '<td class="score-cell">'+scoreBadge(r['最终得分'])+'</td>' +
+        '<td class="reason-cell">'+(r['费用包含']||'-')+'</td>' +
         '<td style="text-align:center"><select class="hangjie-select hangjie-'+(r['是否可挂接']==='是'?'yes':r['是否可挂接']==='否'?'no':r['是否可挂接']==='待确认'?'pending':'')+'" data-row="'+(start+i)+'" onchange="updateHangjie(this)"><option value="">未设置</option><option value="是"'+(r['是否可挂接']==='是'?' selected':'')+'>是</option><option value="否"'+(r['是否可挂接']==='否'?' selected':'')+'>否</option><option value="待确认"'+(r['是否可挂接']==='待确认'?' selected':'')+'>待确认</option></select></td>' +
         '<td class="reason-cell">'+(r['L1_错误类型']||'-')+'</td>' +
         '<td class="reason-cell">'+(r['L1_扣分原因']||'-')+'</td>' +
@@ -266,6 +268,7 @@ table.data-table{width:100%;border-collapse:collapse;font-size:12px;min-width:14
         'L1得分': r['L1得分'],
         'L2得分': r['L2得分'],
         '最终得分': r['最终得分'],
+        '费用包含': r['费用包含'] || '',
         '是否可挂接': r['是否可挂接'] || '未设置',
         'L1-错误类型': r['L1_错误类型'] || '',
         'L1-扣分原因': r['L1_扣分原因'] || '',
@@ -309,7 +312,7 @@ table.data-table{width:100%;border-collapse:collapse;font-size:12px;min-width:14
       if(l1Val && r['L1判定逻辑'] !== l1Val) return false;
       if(hangjieVal && r['是否可挂接'] !== hangjieVal) return false;
       if(search){
-        var hay = [r.product_name, r.scenic_name, r['候选标品名称'], r['L1判定逻辑'], r['L1_扣分原因'], r['L2_扣分原因'], r['候选标品ID']].filter(Boolean).join(' ').toLowerCase();
+        var hay = [r.product_name, r.scenic_name, r['候选标品名称'], r['L1判定逻辑'], r['费用包含'], r['L1_扣分原因'], r['L2_扣分原因'], r['候选标品ID']].filter(Boolean).join(' ').toLowerCase();
         if(!hay.includes(search)) return false;
       }
       return true;
