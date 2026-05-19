@@ -251,7 +251,7 @@ table.data-table{width:100%;border-collapse:collapse;font-size:12px;min-width:20
     container.innerHTML = html;
   }
 
-  function goPage(p){ currentPage = p; renderTable(); document.querySelector('.table-scroll').scrollTop = 0; }
+  window.goPage = function(p){ currentPage = p; renderTable(); document.querySelector('.table-scroll').scrollTop = 0; };
 
   window.updateHangjie = function(sel){
     var idx = parseInt(sel.getAttribute('data-row'));
