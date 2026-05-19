@@ -62,7 +62,7 @@ body{font-family:-apple-system,"PingFang SC","Microsoft YaHei","Segoe UI",Arial,
 .hangjie-pending{background:#FFEB9C;color:#9C5700;border-color:#9C5700}
 .table-wrap{background:var(--card);border-radius:10px;box-shadow:var(--shadow);overflow:hidden}
 .table-scroll{overflow-x:auto;max-height:70vh;overflow-y:auto}
-table.data-table{width:100%;border-collapse:collapse;font-size:12px;min-width:1800px}
+table.data-table{width:100%;border-collapse:collapse;font-size:12px;min-width:2000px}
 .data-table thead{position:sticky;top:0;z-index:2}
 .data-table th{background:var(--primary-light);color:var(--primary);font-weight:600;padding:10px 12px;text-align:left;white-space:nowrap;border-bottom:2px solid var(--primary)}
 .data-table td{padding:8px 12px;border-bottom:1px solid var(--border);vertical-align:top}
@@ -152,6 +152,7 @@ table.data-table{width:100%;border-collapse:collapse;font-size:12px;min-width:18
 <input type="text" id="searchInput" placeholder="搜索商品/景区/标品名称/判定逻辑...">
 <select id="scoreFilter"><option value="">全部得分</option><option value="100">满分(100)</option><option value="0">零分(0)</option><option value="50">50分</option><option value="65">65分</option><option value="75">75分</option><option value="85">85分</option><option value="90">90分</option></select>
 <select id="l1Filter"><option value="">全部L1逻辑</option></select>
+<select id="feeUsefulFilter"><option value="">费用包含是否有用</option><option value="是">是</option><option value="否">否</option><option value="待确认">待确认</option></select>
 <select id="hangjieFilter"><option value="">是否可挂接</option><option value="是">是</option><option value="否">否</option><option value="待确认">待确认</option></select>
 <select id="pageSize"><option value="50">50条/页</option><option value="100" selected>100条/页</option><option value="200">200条/页</option></select>
 <button id="exportBtn" style="padding:7px 16px;background:#008000;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;font-weight:600;">导出Excel</button>
@@ -162,6 +163,7 @@ table.data-table{width:100%;border-collapse:collapse;font-size:12px;min-width:18
 <th>#</th><th>商品名称</th><th>景区名称</th><th>候选标品ID</th><th>候选标品名称</th><th>L1判定逻辑</th>
 <th style="text-align:center">L1得分</th><th style="text-align:center">L2得分</th><th style="text-align:center">最终得分</th>
 <th>费用包含</th>
+<th style="text-align:center">费用包含是否有用</th>
 <th style="text-align:center">是否可挂接</th>
 <th>L1-错误类型</th><th>L1-扣分原因</th><th>L2-规则名称</th><th>L2-错误类型</th><th>L2-扣分原因</th><th style="text-align:center">L2-扣分值</th>
 </tr></thead><tbody id="tableBody"></tbody></table>
@@ -219,7 +221,8 @@ table.data-table{width:100%;border-collapse:collapse;font-size:12px;min-width:18
         '<td class="score-cell">'+scoreBadge(r['L2得分'])+'</td>' +
         '<td class="score-cell">'+scoreBadge(r['最终得分'])+'</td>' +
         '<td class="reason-cell">'+(r['费用包含']||'-')+'</td>' +
-        '<td style="text-align:center"><select class="hangjie-select hangjie-'+(r['是否可挂接']==='是'?'yes':r['是否可挂接']==='否'?'no':r['是否可挂接']==='待确认'?'pending':'')+'" data-row="'+(start+i)+'" onchange="updateHangjie(this)"><option value="">未设置</option><option value="是"'+(r['是否可挂接']==='是'?' selected':'')+'>是</option><option value="否"'+(r['是否可挂接']==='否'?' selected':'')+'>否</option><option value="待确认"'+(r['是否可挂接']==='待确认'?' selected':'')+'>待确认</option></select></td>' +
+        '<td style="text-align:center"><select class="hangjie-select hangjie-'+(r['费用包含是否有用']==='是'?'yes':r['费用包含是否有用']==='否'?'no':r['费用包含是否有用']==='待确认'?'pending':'')+'" data-field="费用包含是否有用" data-row="'+(start+i)+'" onchange="updateHangjie(this)"><option value="">未设置</option><option value="是"'+(r['费用包含是否有用']==='是'?' selected':'')+'>是</option><option value="否"'+(r['费用包含是否有用']==='否'?' selected':'')+'>否</option><option value="待确认"'+(r['费用包含是否有用']==='待确认'?' selected':'')+'>待确认</option></select></td>' +
+        '<td style="text-align:center"><select class="hangjie-select hangjie-'+(r['是否可挂接']==='是'?'yes':r['是否可挂接']==='否'?'no':r['是否可挂接']==='待确认'?'pending':'')+'" data-field="是否可挂接" data-row="'+(start+i)+'" onchange="updateHangjie(this)"><option value="">未设置</option><option value="是"'+(r['是否可挂接']==='是'?' selected':'')+'>是</option><option value="否"'+(r['是否可挂接']==='否'?' selected':'')+'>否</option><option value="待确认"'+(r['是否可挂接']==='待确认'?' selected':'')+'>待确认</option></select></td>' +
         '<td class="reason-cell">'+(r['L1_错误类型']||'-')+'</td>' +
         '<td class="reason-cell">'+(r['L1_扣分原因']||'-')+'</td>' +
         '<td>'+(r['L2_规则名称']||'-')+'</td>' +
@@ -252,8 +255,9 @@ table.data-table{width:100%;border-collapse:collapse;font-size:12px;min-width:18
 
   window.updateHangjie = function(sel){
     var idx = parseInt(sel.getAttribute('data-row'));
+    var field = sel.getAttribute('data-field') || '是否可挂接';
     var realIdx = (currentPage - 1) * pageSize + idx;
-    ALL_ROWS[realIdx]['是否可挂接'] = sel.value;
+    ALL_ROWS[realIdx][field] = sel.value;
     sel.className = 'hangjie-select hangjie-'+(sel.value==='是'?'yes':sel.value==='否'?'no':sel.value==='待确认'?'pending':'');
   };
 
@@ -269,6 +273,7 @@ table.data-table{width:100%;border-collapse:collapse;font-size:12px;min-width:18
         'L2得分': r['L2得分'],
         '最终得分': r['最终得分'],
         '费用包含': r['费用包含'] || '',
+        '费用包含是否有用': r['费用包含是否有用'] || '未设置',
         '是否可挂接': r['是否可挂接'] || '未设置',
         'L1-错误类型': r['L1_错误类型'] || '',
         'L1-扣分原因': r['L1_扣分原因'] || '',
@@ -305,11 +310,13 @@ table.data-table{width:100%;border-collapse:collapse;font-size:12px;min-width:18
     var search = document.getElementById('searchInput').value.toLowerCase().trim();
     var scoreVal = document.getElementById('scoreFilter').value;
     var l1Val = document.getElementById('l1Filter').value;
+    var feeUsefulVal = document.getElementById('feeUsefulFilter').value;
     var hangjieVal = document.getElementById('hangjieFilter').value;
     pageSize = parseInt(document.getElementById('pageSize').value);
     filtered = ALL_ROWS.filter(function(r){
       if(scoreVal !== '' && Number(r['最终得分']) !== Number(scoreVal)) return false;
       if(l1Val && r['L1判定逻辑'] !== l1Val) return false;
+      if(feeUsefulVal && r['费用包含是否有用'] !== feeUsefulVal) return false;
       if(hangjieVal && r['是否可挂接'] !== hangjieVal) return false;
       if(search){
         var hay = [r.product_name, r.scenic_name, r['候选标品名称'], r['L1判定逻辑'], r['费用包含'], r['L1_扣分原因'], r['L2_扣分原因'], r['候选标品ID']].filter(Boolean).join(' ').toLowerCase();
@@ -324,6 +331,7 @@ table.data-table{width:100%;border-collapse:collapse;font-size:12px;min-width:18
   document.getElementById('searchInput').addEventListener('input', debounce(applyFilters, 300));
   document.getElementById('scoreFilter').addEventListener('change', applyFilters);
   document.getElementById('l1Filter').addEventListener('change', applyFilters);
+  document.getElementById('feeUsefulFilter').addEventListener('change', applyFilters);
   document.getElementById('hangjieFilter').addEventListener('change', applyFilters);
   document.getElementById('pageSize').addEventListener('change', applyFilters);
 
