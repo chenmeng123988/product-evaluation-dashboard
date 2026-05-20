@@ -155,7 +155,10 @@ table.data-table{width:100%;border-collapse:collapse;font-size:12px;min-width:20
 <select id="feeUsefulFilter"><option value="">费用包含是否有用</option><option value="是">是</option><option value="否">否</option><option value="待确认">待确认</option></select>
 <select id="hangjieFilter"><option value="">是否可挂接</option><option value="是">是</option><option value="否">否</option><option value="待确认">待确认</option></select>
 <select id="pageSize"><option value="50">50条/页</option><option value="100" selected>100条/页</option><option value="200">200条/页</option></select>
-<button id="exportBtn" style="padding:7px 16px;background:#008000;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;font-weight:600;">导出Excel</button>
+<input type="text" id="tokenInput" placeholder="输入GitHub Token" style="width:200px;font-size:12px;">
+<button id="loadMarksBtn" style="padding:7px 12px;background:#4472C4;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;font-weight:600;">加载标记</button>
+<button id="saveMarksBtn" style="padding:7px 16px;background:#008000;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;font-weight:600;">保存标记</button>
+<button id="exportBtn" style="padding:7px 16px;background:#0066cc;color:#fff;border:none;border-radius:6px;font-size:13px;cursor:pointer;font-weight:600;">导出Excel</button>
 <span class="info" id="filterInfo"></span>
 </div>
 <div class="table-wrap"><div class="table-scroll">
@@ -193,6 +196,132 @@ table.data-table{width:100%;border-collapse:collapse;font-size:12px;min-width:20
   var filtered = ALL_ROWS.slice();
   var currentPage = 1;
   var pageSize = 100;
+
+  // === 云端标记管理 ===
+  var marks = {};  // 云端标记数据 {candidateId: {费用包含是否有用, 是否可挂接}}
+  var githubOwner = 'chenmeng123988';
+  var githubRepo = 'product-evaluation-dashboard';
+  var marksPath = 'marks.json';
+
+  function getToken() {
+    return document.getElementById('tokenInput').value.trim() || localStorage.getItem('github_token') || '';
+  }
+
+  function setToken(token) {
+    if (token) localStorage.setItem('github_token', token);
+    document.getElementById('tokenInput').value = token;
+  }
+
+  // 加载云端标记数据
+  window.loadMarks = function() {
+    var token = getToken();
+    if (!token) { alert('请先输入 GitHub Token'); return; }
+    setToken(token);
+
+    var btn = document.getElementById('loadMarksBtn');
+    btn.textContent = '加载中...';
+    btn.disabled = true;
+
+    var url = 'https://api.github.com/repos/' + githubOwner + '/' + githubRepo + '/contents/' + marksPath + '?t=' + Date.now();
+    fetch(url, { headers: { 'Authorization': 'token ' + token } })
+      .then(function(r) {
+        if (r.status === 404) { alert('云端尚无标记数据'); return {}; }
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .then(function(data) {
+        if (!data || !data.content) { marks = {}; return; }
+        marks = JSON.parse(atob(data.content));
+        applyMarksToData();
+        renderTable();
+        alert('已加载 ' + Object.keys(marks).length + ' 条标记记录');
+      })
+      .catch(function(e) {
+        alert('加载失败: ' + e.message);
+      })
+      .finally(function() {
+        btn.textContent = '加载标记';
+        btn.disabled = false;
+      });
+  };
+
+  // 将云端标记合并到 ALL_ROWS 中
+  function applyMarksToData() {
+    ALL_ROWS.forEach(function(row) {
+      var cid = row['候选标品ID'];
+      if (marks[cid]) {
+        if (marks[cid]['费用包含是否有用']) row['费用包含是否有用'] = marks[cid]['费用包含是否有用'];
+        if (marks[cid]['是否可挂接']) row['是否可挂接'] = marks[cid]['是否可挂接'];
+      }
+    });
+  }
+
+  // 保存本地标记到云端
+  window.saveMarks = function() {
+    var token = getToken();
+    if (!token) { alert('请先输入 GitHub Token'); return; }
+    setToken(token);
+
+    // 收集所有标记
+    var newMarks = {};
+    ALL_ROWS.forEach(function(row) {
+      var cid = row['候选标品ID'];
+      var feeUseful = row['费用包含是否有用'] || '';
+      var hangjie = row['是否可挂接'] || '';
+      if (feeUseful || hangjie) {
+        newMarks[cid] = {
+          '费用包含是否有用': feeUseful,
+          '是否可挂接': hangjie
+        };
+      }
+    });
+
+    var btn = document.getElementById('saveMarksBtn');
+    btn.textContent = '保存中...';
+    btn.disabled = true;
+
+    var apiUrl = 'https://api.github.com/repos/' + githubOwner + '/' + githubRepo + '/contents/' + marksPath;
+
+    // 先获取当前文件的 SHA
+    fetch(apiUrl + '?t=' + Date.now(), { headers: { 'Authorization': 'token ' + token } })
+      .then(function(r) {
+        if (r.status === 404) return null;  // 文件不存在，创建新文件
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .then(function(data) {
+        var sha = data ? data.sha : undefined;
+        var body = {
+          message: 'update marks: ' + Object.keys(newMarks).length + ' candidates, ' + new Date().toISOString().slice(0, 19).replace('T', ' ') + ' CST',
+          content: btoa(JSON.stringify(newMarks, null, 2))
+        };
+        if (sha) body.sha = sha;
+
+        return fetch(apiUrl, {
+          method: 'PUT',
+          headers: {
+            'Authorization': 'token ' + token,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(body)
+        });
+      })
+      .then(function(r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .then(function() {
+        marks = newMarks;
+        alert('已保存 ' + Object.keys(newMarks).length + ' 条标记记录');
+      })
+      .catch(function(e) {
+        alert('保存失败: ' + e.message);
+      })
+      .finally(function() {
+        btn.textContent = '保存标记';
+        btn.disabled = false;
+      });
+  };
 
   function scoreBadge(val) {
     if(val === '' || val === null || val === undefined) return '-';
@@ -257,7 +386,22 @@ table.data-table{width:100%;border-collapse:collapse;font-size:12px;min-width:20
     var idx = parseInt(sel.getAttribute('data-row'));
     var field = sel.getAttribute('data-field') || '是否可挂接';
     var realIdx = (currentPage - 1) * pageSize + idx;
+    var cid = ALL_ROWS[realIdx]['候选标品ID'];
+
+    // 更新 ALL_ROWS
     ALL_ROWS[realIdx][field] = sel.value;
+
+    // 同步更新本地 marks
+    if (!marks[cid]) marks[cid] = {};
+    marks[cid][field] = sel.value;
+
+    // 清除空值
+    if (!sel.value) {
+      delete ALL_ROWS[realIdx][field];
+      if (marks[cid]) delete marks[cid][field];
+      if (Object.keys(marks[cid]).length === 0) delete marks[cid];
+    }
+
     sel.className = 'hangjie-select hangjie-'+(sel.value==='是'?'yes':sel.value==='否'?'no':sel.value==='待确认'?'pending':'');
   };
 
@@ -304,7 +448,13 @@ table.data-table{width:100%;border-collapse:collapse;font-size:12px;min-width:20
     URL.revokeObjectURL(url);
   }
 
+  document.getElementById('loadMarksBtn').addEventListener('click', loadMarks);
+  document.getElementById('saveMarksBtn').addEventListener('click', saveMarks);
   document.getElementById('exportBtn').addEventListener('click', exportToExcel);
+
+  // 恢复之前保存的 token
+  var savedToken = localStorage.getItem('github_token');
+  if (savedToken) document.getElementById('tokenInput').value = savedToken;
 
   function applyFilters(){
     var search = document.getElementById('searchInput').value.toLowerCase().trim();
